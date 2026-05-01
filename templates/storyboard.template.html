@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-Hans">
+<head>
+<meta charset="UTF-8">
+<title>分镜进度看板 · pro-video-composer</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; padding: 24px; background: #f5f5f7; color: #1d1d1f; font-family: -apple-system, "PingFang SC", "Hiragino Sans GB", sans-serif; font-size: 14px; line-height: 1.5; }
+h1 { font-size: 28px; margin: 0 0 6px; color: #1d1d1f; letter-spacing: 0.5px; }
+h1 .accent { color: #007aff; }
+h2 { font-size: 22px; margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e5e7eb; color: #1d1d1f; }
+.meta { color: #6b7280; font-size: 12px; margin-bottom: 20px; }
+.progress-bar { width: 100%; height: 8px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin: 12px 0; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #007aff, #34c759); transition: width 0.3s; }
+.cut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.cut-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: border 0.2s, transform 0.2s, box-shadow 0.2s; }
+.cut-card:hover { border-color: #007aff; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,122,255,0.12); }
+.cut-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.cut-id { font-size: 18px; font-weight: 700; color: #007aff; }
+.cut-time { font-size: 12px; color: #6b7280; padding: 2px 8px; background: #f3f4f6; border-radius: 10px; }
+.cut-status { font-size: 12px; padding: 2px 10px; border-radius: 10px; font-weight: 600; }
+.status-done { background: #d1fae5; color: #065f46; }
+.status-progress { background: #fef3c7; color: #92400e; }
+.status-planning { background: #e0e7ff; color: #3730a3; }
+.status-todo { background: #fee2e2; color: #991b1b; }
+.cut-type { font-size: 14px; color: #4b5563; }
+.cut-script { font-size: 14px; line-height: 1.5; padding: 10px 12px; background: #fffbeb; border-left: 3px solid #f59e0b; border-radius: 4px; min-height: 36px; color: #1d1d1f; }
+.cut-script.empty { color: #9ca3af; font-style: italic; background: #f9fafb; border-left-color: #d1d5db; }
+.cut-visual { margin-top: 4px; }
+.cut-visual video, .cut-visual img { width: 100%; max-height: 180px; border-radius: 8px; background: #000; display: block; object-fit: cover; }
+.cut-visual .placeholder { display: flex; align-items: center; justify-content: center; height: 100px; background: #f9fafb; border: 2px dashed #d1d5db; border-radius: 8px; color: #9ca3af; font-size: 13px; text-align: center; padding: 12px; }
+.cut-time-range { font-size: 11px; color: #9ca3af; font-family: ui-monospace, monospace; }
+.section-summary { background: #ffffff; border-radius: 12px; padding: 18px 20px; margin-bottom: 16px; border-left: 4px solid #007aff; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+.section-summary p { margin: 4px 0; }
+.section-summary code { background: #f3f4f6; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.section-summary video { width: 100%; max-height: 360px; border-radius: 8px; background: #000; display: block; margin-top: 8px; }
+.legend { font-size: 12px; color: #6b7280; padding: 8px 12px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; display: inline-block; margin-bottom: 16px; }
+footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #9ca3af; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<h1>🎬 <span class="accent">分镜</span>进度看板</h1>
+<p class="meta">pro-video-composer · 最后更新: __LAST_UPDATED__</p>
+
+<div class="legend">
+  🎬 Remotion · 🎨 截图 · 🌅 空镜 · 📹 待录屏 · 🤖 数字人 PiP · 🔁 转场
+  &nbsp;|&nbsp; ✅ 完成 · 🚧 进行中 · 📋 已对齐 · ⬜ 待处理
+</div>
+
+<div class="section-summary">
+  <strong>总进度</strong>
+  <p>__PROGRESS_TEXT__ · 总时长 __TOTAL_DURATION__s · 对齐方法 <code>__ALIGN_METHOD__</code></p>
+  <div class="progress-bar"><div class="progress-fill" style="width: __PROGRESS_PCT__%"></div></div>
+</div>
+
+__FINAL_VIDEO_BLOCK__
+
+<h2>分镜列表</h2>
+<div class="cut-grid" id="scenes"></div>
+
+<footer>
+  <p>🔄 看板每次 pipeline 跑都会刷新 <code>__LAST_UPDATED__</code> 字段</p>
+  <p>📌 改某个 scene 不满意:编辑 <code>scenes_aligned.json</code> 后重跑下游</p>
+</footer>
+
+<script>
+const SCENES = __SCENES_JSON__;
+
+const TYPE_EMOJI = {
+  "remotion": "🎬 Remotion",
+  "screenshot": "🎨 截图",
+  "broll": "🌅 空镜",
+  "record_placeholder": "📹 待录屏",
+  "avatar_pip": "🤖 数字人 PiP",
+  "transition": "🔁 转场",
+};
+
+function statusBadge(s) {
+  const labels = {done: "✅ 完成", progress: "🚧 进行中", planning: "📋 已对齐", todo: "⬜ 待处理"};
+  return `<span class="cut-status status-${s || 'todo'}">${labels[s || 'todo']}</span>`;
+}
+
+function renderCut(c) {
+  const visual = c.thumb
+    ? `<div class="cut-visual"><img src="${c.thumb}" alt="${c.id}"></div>`
+    : (c.video
+        ? `<div class="cut-visual"><video src="${c.video}" muted></video></div>`
+        : `<div class="cut-visual"><div class="placeholder">⬜ 待生成视觉素材<br>(${TYPE_EMOJI[c.visual_hint] || c.visual_hint})</div></div>`);
+  const range = c.start_sec != null
+    ? `<div class="cut-time-range">${c.start_sec.toFixed(2)}s → ${c.end_sec.toFixed(2)}s</div>`
+    : '';
+  return `
+    <div class="cut-card">
+      <div class="cut-header">
+        <span class="cut-id">#${c.id}</span>
+        <div>
+          <span class="cut-time">${(c.duration_sec || c.est_duration || 0).toFixed(1)}s</span>
+          ${statusBadge(c.status)}
+        </div>
+      </div>
+      <div class="cut-type">${TYPE_EMOJI[c.visual_hint] || c.visual_hint}</div>
+      <div class="cut-script ${(!c.text || c.text.startsWith('(')) ? 'empty' : ''}">${c.text || '(无口播 / 转场)'}</div>
+      ${range}
+      ${visual}
+    </div>
+  `;
+}
+
+document.getElementById("scenes").innerHTML = SCENES.map(renderCut).join("");
+</script>
+</body>
+</html>
