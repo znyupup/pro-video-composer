@@ -1,9 +1,9 @@
 ---
 name: pro-video-composer
-description: 开箱即用的 AI 视频合成流水线。用户提供文稿(.md)+ 录音(.mp3/.wav)+ 空镜素材目录,可选数字人视频,skill 自动:① LLM 拆 ~13 个 ~2s 分镜 ② ASR 转录音对齐时间轴 ③ 生成可视化分镜看板让用户过审 ④ 选/生成视觉素材(Remotion 动画/空镜/录屏占位)⑤ ffmpeg 程序化拼接 + PiP 数字人 + 全屏切换 + 字幕 → FINAL.mp4。每一步都刷可视化 storyboard.html。串联 4 个角色:**ffmpeg(剪辑师)+ Remotion(动画师)+ 视觉/ASR 模型(时间轴对齐)+ agent(协调大脑)**。当用户说"这是我的视频文稿,开始制作视频"、"做个科普视频开头"、"按文稿+录音+空镜剪一段"、"生成 hook 段"、"AI 自动剪辑视频" 时使用。**不用于** 单一 markdown → 讲解动画(那是 knowledge-explainer-skill)、纯录屏剪辑(用剪映)、AI 自动剪 vlog(用 vlog-auto-edit)。
-version: 0.2.0
+description: 开箱即用的 AI 视频合成流水线 + 声音复刻 + 逐句情绪生成。用户提供文稿(.md)+ 录音(.mp3/.wav) [可选](.md)+ 空镜素材目录,可选数字人视频,skill 自动:① LLM 拆 ~13 个 ~2s 分镜 ② ASR 转录音对齐时间轴 ③ 生成可视化分镜看板让用户过审 ④ 选/生成视觉素材(Remotion 动画/空镜/录屏占位)⑤ ffmpeg 程序化拼接 + PiP 数字人 + 全屏切换 + 字幕 → FINAL.mp4。**v0.3 新增**:**音色复刻**(主音频 + 示例音频 + 自动 ASR 校对 → voice_id)+ **逐句情绪生成**(文稿 → agent 拆句标 emotion → 逐段调 t2a_v2 → ffmpeg concat → narration.mp3),NyxVoice2026 锁定配方(speech-2.8-hd / happy / 1.2 / pitch=0)+ 5 个安全 emotion(happy/surprised/calm/sad/fluent)。每一步都刷可视化 storyboard.html。串联 4 个角色:**ffmpeg(剪辑师)+ Remotion(动画师)+ 视觉/ASR 模型(时间轴对齐)+ agent(协调大脑)**。当用户说"这是我的视频文稿,开始制作视频"、"做个科普视频开头"、"按文稿+录音+空镜剪一段"、"生成 hook 段"、"AI 自动剪辑视频"、"复刻我的音色"、"用我的 voice_id 生成口播"、"按情绪拆句合成"、"AI 配音" 时使用。**不用于** 单一 markdown → 讲解动画(那是 knowledge-explainer-skill)、纯录屏剪辑(用剪映)、AI 自动剪 vlog(用 vlog-auto-edit)。
+version: 0.3.0
 type: video-composition
-tags: [video-composition, ffmpeg, remotion, asr, pip, hook, ai-pipeline]
+tags: [video-composition, ffmpeg, remotion, asr, pip, hook, ai-pipeline, voice-cloning, tts, per-sentence-emotion, minimax]
 author: nyx研究所 (https://github.com/znyupup)
 status: experimental
 ---
@@ -15,14 +15,24 @@ status: experimental
 
 ## 触发场景
 
+### 视频合成(原 v0.2)
 - "这是我的视频文稿,开始制作视频" / "按文稿剪一段"
 - "做个科普视频开头" / "生成 hook 段"
 - "AI 自动剪辑视频" / "用 skill 出片"
 - 用户提供 .md 文稿 + .mp3/.wav 录音 + 空镜素材目录
 
+### 声音复刻(v0.3 新增)
+- "复刻我的音色" / "创建 voice_id" / "克隆我的声音"
+- 用户提供 1-3 分钟主音频 + 5-30s 示例音频
+
+### 逐句情绪生成(v0.3 新增)
+- "用我的 voice_id 生成口播" / "AI 配音"
+- "按情绪拆句合成" / "用我的音色按情绪生成这段口播"
+- 用户提供文稿 + voice_id
+
 ## 输入约定
 
-用户必须提供:
+### 视频合成路径
 1. **文稿** `script.md`(分段或纯文本均可,LLM 会自动拆)
 2. **录音** `voiceover.mp3` / `voiceover.wav`(口播音轨)
 
@@ -31,15 +41,56 @@ status: experimental
 4. **数字人视频** `avatar.mp4`(用于 PiP 圆框 + 偶尔全屏震撼)
 5. **既有 Remotion 项目**(否则 skill 会自己 scaffold 一个)
 
+### 声音复刻路径(v0.3)
+1. **主音频** `main.mp3`(60-180s,音质干净,无杂音)
+2. **示例音频** `sample.mp3`(5-30s,可选;不给则跳过文字稿配对)
+
+### 逐句情绪生成路径(v0.3)
+1. **文稿** `narration.md`
+2. **voice_id**(从 `voice_clone/voice_id.txt` 读,或 CLI 参数传)
+
 输出:
 - `out/FINAL.mp4` — 整片成品
 - `out/storyboard.html` — 可视化分镜看板(过审 + 进度追踪)
 - `out/recipe.sh` — 可重跑公式
 - `out/scenes.json` — 分镜结构化数据
+- **(v0.3)** `out/narration.mp3` — 逐句情绪 AI 配音
+- **(v0.3)** `out/narration_segments/seg{N}.mp3` — 单段
+- **(v0.3)** `out/emotion_plan.json` — 拆句 + 情绪结果
+- **(v0.3)** `voice_clone/voice_id.txt` — 复刻后的 voice_id
 
-## Pipeline(7 步)
+## Pipeline(7 步 + v0.3 前置 2 步)
 
-每一步都 **刷新 storyboard.html**(`scripts/generate-storyboard.sh` 调用),让用户随时浏览器打开看进度。
+### Step -1(v0.3):声音复刻 → voice_id
+
+`scripts/voice-clone.sh main.mp3 sample.mp3 → voice_clone/voice_id.txt`
+
+子步:
+1. 上传主音频 → MiniMax `/v1/voice_cloning/upload_clone_audio` → 拿 `file_id`
+2. **示例音频自动 ASR**(MiniMax audio understanding 中文转录)→ 写入 `voice_clone/transcript.md`
+3. **暂停等用户校对**:打开 transcript.md(默认 vim),用户改完保存回车继续
+4. 调 `/v1/voice_cloning/clone` 携带 file_id + sample.mp3 + 校对后 transcript → 拿 voice_id
+5. 跑测试合成验证可用 → `voice_clone/test.mp3`
+6. 写入 `voice_clone/voice_id.txt`
+
+详见 `references/voice-clone-recipe.md`。
+
+### Step 0(v0.3):文稿 + voice_id → AI 配音 narration.mp3
+
+`scripts/narrate-emotion.sh narration.md → out/narration.mp3`
+
+子步:
+1. **agent 拆句**(用户的 agent — Claude/GPT/MiniMax/etc — 不绑定):agent 读 `references/per-sentence-emotion.md` 获取 5 个安全 emotion 集 + 长度规则,自己拆句标情绪,写入 `out/emotion_plan.json`
+2. **校验** emotion_plan:每段 ≤15s 文本 / emotion ∈ {happy/surprised/calm/sad/fluent} / 文本无叹词无标签
+3. **逐段调 t2a_v2** `model=speech-2.8-hd` `voice_id=<USER>` `speed=1.2` `pitch=0` `voice_modify=禁用` → `out/narration_segments/seg{N}.mp3`
+4. **ffmpeg concat** → `out/narration.mp3`
+5. 输出可视化 emotion 表 `out/emotion_plan.html`
+
+详见 `references/per-sentence-emotion.md` + `references/length-rules.md`。
+
+**集成点**:Step 0 输出的 `out/narration.mp3` 可直接作为 Step 2 的 `voiceover.mp3` 输入,后续 ASR 对齐 / 视觉合成不变。
+
+---
 
 ### Step 1:文稿 → 分镜拆解
 
@@ -139,6 +190,10 @@ status: experimental
 
 | 文件 | 用途 |
 |---|---|
+| `scripts/voice-clone.sh` | **(v0.3)** 上传 + ASR + 校对 + clone + 测试 |
+| `scripts/narrate-emotion.sh` | **(v0.3)** 校验 emotion_plan + 逐段 t2a + concat |
+| `scripts/minimax-asr.py` | **(v0.3)** MiniMax audio understanding 中文转录 |
+| `scripts/minimax-t2a.py` | **(v0.3)** T2A v2 调用 + 黑名单校验 |
 | `scripts/split-scenes.sh` | LLM 拆分镜 |
 | `scripts/asr-align.sh` | 录音转录 + 时间轴对齐 |
 | `scripts/generate-storyboard.sh` | 生成 / 刷新可视化看板 |
@@ -147,9 +202,15 @@ status: experimental
 | `scripts/sample-frames.sh` | 抽验证帧 |
 | `scripts/check-splice-points.sh` | 检测拼接素材卡顿点 |
 | `scripts/extract-portrait.sh` | 抽数字人头像 PNG(fallback,默认不用) |
+| `templates/voice_clone_call.json` | **(v0.3)** voice cloning API 请求模板 |
+| `templates/t2a_v2_call.json` | **(v0.3)** T2A v2 请求模板(含锁定参数) |
+| `templates/emotion_plan.schema.json` | **(v0.3)** agent 输出 emotion_plan JSON Schema |
 | `templates/storyboard.template.html` | 看板模板 |
 | `templates/composition.skeleton.jsx` | Remotion 组件骨架 |
 | `templates/assemble.template.sh` | 拼接公式模板 |
+| `references/voice-clone-recipe.md` | **(v0.3)** 锁定配方 + 失败方向黑名单 |
+| `references/per-sentence-emotion.md` | **(v0.3)** 5 emotion 安全集 + 拆句策略 + agent prompt |
+| `references/length-rules.md` | **(v0.3)** T2A ≤ 15s / 数字人 ≤ 6s 硬约束 |
 | `references/scene-splitting.md` | LLM 拆分镜 prompt + 规则 |
 | `references/asr-alignment.md` | ASR 对齐策略 |
 | `references/visual-source-selection.md` | 视觉源类型 + 选择规则 |

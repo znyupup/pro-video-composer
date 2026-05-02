@@ -1,0 +1,47 @@
+{
+  "_comment": "MiniMax T2A v2 请求模板 — POST /v1/t2a_v2 — 含 NyxVoice2026 锁定配方",
+  "_endpoint": "https://api.minimaxi.com/v1/t2a_v2",
+  "_required_headers": {
+    "Authorization": "Bearer <MINIMAX_API_KEY>",
+    "Content-Type": "application/json"
+  },
+  "model": "speech-2.8-hd",
+  "text": "<TEXT_HERE_NO_INTERJECTIONS_NO_TAGS>",
+  "stream": false,
+  "voice_setting": {
+    "voice_id": "<USER_VOICE_ID>",
+    "speed": 1.2,
+    "vol": 1.0,
+    "pitch": 0,
+    "emotion": "happy"
+  },
+  "_voice_modify_DELETED_INTENTIONALLY": "voice_modify 全部禁用 — 任何参数都让音色失真",
+  "audio_setting": {
+    "sample_rate": 32000,
+    "bitrate": 128000,
+    "format": "mp3",
+    "channel": 1
+  },
+  "_emotion_safe_set": ["happy", "surprised", "calm", "sad", "fluent"],
+  "_emotion_blacklist": ["angry", "disgusted", "fearful"],
+  "_text_blacklist_substrings": ["啦", "诶", "(breath)", "(chuckle)", "(sigh)", "<#"],
+  "_response_example": {
+    "data": {
+      "audio": "<HEX_AUDIO_PAYLOAD>",
+      "status": 2
+    },
+    "extra_info": {
+      "audio_length": 5470,
+      "audio_sample_rate": 32000,
+      "audio_size": 87528,
+      "bitrate": 128000,
+      "word_count": 33,
+      "usage_characters": 33
+    },
+    "trace_id": "...",
+    "base_resp": {
+      "status_code": 0,
+      "status_msg": "success"
+    }
+  }
+}

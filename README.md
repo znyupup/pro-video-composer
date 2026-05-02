@@ -2,15 +2,41 @@
 
 **Author:** nyx研究所 · [GitHub](https://github.com/znyupup) · [B站 @nyx研究所](https://space.bilibili.com/4330525) · 小红书 @nyx研究所 · [X @znyupup_music](https://x.com/znyupup_music)
 
-> ⚠️ **v0.2 · experimental MVP** · Step 1 已测通,Step 2-7 实现完待端到端验证。
-> 推上来就是为了让你边用边帮我找 bug。
+> ⚠️ **v0.3 · experimental** · v0.2 视频合成 + **v0.3 新增 音色复刻 + 逐句情绪生成**
 
 把 **文稿(.md) + 录音(.mp3) + 空镜目录** 喂给 AI agent,自动出 mp4 成片 — 不是模板填空,是 LLM 拆分镜 + ASR 对齐 + ffmpeg 程序化拼接的真正 pipeline。
+**v0.3 起**:不需要先录好旁白了 — 用你自己的复刻音色 + 让 agent 按情绪拆句,**整段口播 AI 配音**。
 
 ```bash
 # 在 agent (Claude Code / Codex) 里:
 > 这是我的视频文稿,开始制作视频吧
+
+# v0.3 新增:
+> 复刻我的音色  (主+示例音频 → voice_id)
+> 用我的音色,按情绪生成这段口播  (文稿 → narration.mp3)
 ```
+
+## v0.3 Changelog (2026-05-02)
+
+加 2 个新模块,**不单独建 skill**,合进同 repo:
+
+| 模块 | 输入 | 输出 |
+|---|---|---|
+| **voice-clone** | 主音频(60-180s)+ 示例音频(5-30s) | `voice_id` + 测试 mp3 |
+| **narrate-with-emotion** | 文稿 + voice_id | `out/narration.mp3` + 逐句 emotion 表 |
+
+**核心配方**(4 轮 A/B 后锁定):
+- 模型:`speech-2.8-hd`(turbo 复读,2.6 不稳)
+- 参数:`speed=1.2` + `pitch=0` + `voice_modify` 全禁用
+- 5 个安全 emotion:`happy / surprised / calm / sad / fluent`(angry/disgusted/fearful 失真禁用)
+- 文本黑名单:不加 `啦/诶/(breath)/(chuckle)/<#x#>`
+- 单段文本 ≤ 80 字 ≤ 15s 音频(超出长段偏移)
+
+**逐句情绪 = 拆段合成 + 每段独立 emotion + ffmpeg concat**(MiniMax 不支持文本内联标签)。
+
+**ASR 不绑定单一服务**:默认 MiniMax audio understanding,用户校对错字后才进 voice cloning。
+
+**LLM 拆句不绑定 provider**:agent 读 `references/per-sentence-emotion.md` 自己产 `emotion_plan.json`。Claude / GPT / MiniMax 都行。
 
 ## 这个 skill 解决什么问题
 

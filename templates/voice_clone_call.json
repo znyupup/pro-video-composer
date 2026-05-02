@@ -1,0 +1,29 @@
+{
+  "_comment": "MiniMax voice cloning 请求模板 — POST /v1/voice_cloning/clone",
+  "_endpoint": "https://api.minimaxi.com/v1/voice_cloning/clone",
+  "_required_headers": {
+    "Authorization": "Bearer <MINIMAX_API_KEY>",
+    "Content-Type": "application/json"
+  },
+  "voice_id": "<USER_DEFINED_VOICE_ID>",
+  "file_id": "<MAIN_AUDIO_FILE_ID_FROM_UPLOAD>",
+  "_optional_sample": {
+    "_comment": "示例音频对齐(可选,但强烈推荐;不给则只用主音频特征)",
+    "audio_file": "<SAMPLE_AUDIO_FILE_ID>",
+    "text": "<SAMPLE_TRANSCRIPT_AFTER_USER_REVIEW>"
+  },
+  "_response_example": {
+    "voice_id": "<NEW_VOICE_ID>",
+    "input_sensitive": false,
+    "demo_audio": "https://...",
+    "base_resp": {
+      "status_code": 0,
+      "status_msg": "success"
+    }
+  },
+  "_failure_codes": {
+    "1004": "voice_id 已存在,改个名",
+    "2013": "audio_file 不存在或损坏",
+    "1027": "示例音频和文字稿不匹配 — 校对失败"
+  }
+}
