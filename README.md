@@ -80,7 +80,7 @@ out/FINAL.mp4 + storyboard.html + recipe.sh
 
 ## Quickstart
 
-### 1. 安装
+### 1. 安装 skill
 
 ```bash
 git clone https://github.com/znyupup/pro-video-composer ~/.mavis/skills/pro-video-composer
@@ -90,20 +90,38 @@ git clone https://github.com/znyupup/pro-video-composer ~/.mavis/skills/pro-vide
 
 依赖:
 - **ffmpeg** — `brew install ffmpeg`
+- **node >= 18** — `brew install node`(Remotion 4 必需)
 - **funASR**(Step 2 用) — `pip install funasr modelscope`(可选,fallback 到 matrix MCP)
-- **Remotion 项目**(Step 4 用) — 你的工作区有 `remotion-test/` 之类的项目即可
 
-### 2. 准备素材
+### 2. 初始化 Remotion 项目(用户持有,skill 不带)
+
+skill 跟 Remotion 项目是**解耦关系** — skill 提供组件模板 + 调度逻辑,Remotion 项目由你的工作区持有(因为不同人的项目结构、依赖版本、复用组件库不一样)。
+
+第一次用,跑一下 scaffold 脚本一键起最小项目:
+
+```bash
+~/.mavis/skills/pro-video-composer/scripts/setup-remotion.sh ./remotion-test
+cd remotion-test
+npm install            # ~30s, 600MB
+npx remotion studio    # 本地预览(可选)
+```
+
+之后 skill 会往这个 `remotion-test/src/` 注册新组件 + 渲 mp4。
+
+> 已经有 Remotion 项目?跳过这步,把工作目录指向你的项目即可(必须满足:`src/index.jsx` 注册 Composition,1920×1080,id 不含下划线)。
+
+### 3. 准备素材
 
 ```
 your-video-project/
 ├── script.md          ← 文稿(分段或纯文本均可)
 ├── voiceover.mp3      ← 录音(口播音轨)
 ├── broll/             ← (可选) 空镜目录
-└── avatar.mp4         ← (可选) 数字人视频(PiP 圆框 + 偶尔全屏)
+├── avatar.mp4         ← (可选) 数字人视频(PiP 圆框 + 偶尔全屏)
+└── remotion-test/     ← Step 2 创建的 Remotion 项目
 ```
 
-### 3. 在 agent 里说
+### 4. 在 agent 里说
 
 ```
 > 用 pro-video-composer 这个 skill,按 script.md + voiceover.mp3 出片
